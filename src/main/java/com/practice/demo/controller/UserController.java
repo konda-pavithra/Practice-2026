@@ -1,5 +1,7 @@
 package com.practice.demo.controller;
 
+import com.practice.demo.dto.LoginRequest;
+import com.practice.demo.dto.LoginResponse;
 import com.practice.demo.dto.RegistrationRequest;
 import com.practice.demo.dto.RegistrationResponse;
 import com.practice.demo.service.UserService;
@@ -24,13 +26,31 @@ public class UserController {
         this.userService = userService;
     }
 
+    // -----------------------------------------------------------------------
+    // POST /api/users/register
+    // -----------------------------------------------------------------------
+
     @PostMapping("/register")
     public ResponseEntity<RegistrationResponse> register(@RequestBody RegistrationRequest request) {
-        logger.info("POST /api/users/register — incoming registration request for username: '{}'",
+        logger.info("POST /api/users/register — received registration request for username: '{}'",
                 request.getUsername());
         RegistrationResponse response = userService.register(request);
         logger.info("POST /api/users/register — registration completed for username: '{}'",
                 request.getUsername());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    // -----------------------------------------------------------------------
+    // POST /api/users/login
+    // -----------------------------------------------------------------------
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+        logger.info("POST /api/users/login — received login request for username: '{}'",
+                request.getUsername());
+        LoginResponse response = userService.login(request);
+        logger.info("POST /api/users/login — login successful for username: '{}'",
+                request.getUsername());
+        return ResponseEntity.ok(response);
     }
 }
