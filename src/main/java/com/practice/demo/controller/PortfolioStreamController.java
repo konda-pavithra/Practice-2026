@@ -2,6 +2,13 @@ package com.practice.demo.controller;
 
 import com.practice.demo.dto.PortfolioRealtimeResponse;
 import com.practice.demo.service.PortfolioRealtimeService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +55,13 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * An SSE comment ({@code :heartbeat}) is also sent every 30 s to prevent
  * proxy timeouts on idle connections.
  */
+@Tag(
+    name        = "Real-time Portfolio Stream",
+    description = "Live portfolio P&L via Server-Sent Events (SSE) driven by Kafka price updates. "
+                + "Also exposes a one-shot REST snapshot for polling clients. "
+                + "All endpoints require a valid JWT."
+)
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/portfolio/stream")
 public class PortfolioStreamController {
@@ -92,6 +106,28 @@ public class PortfolioStreamController {
      *
      * @return an {@link SseEmitter}; Spring MVC keeps the response open and flushes events
      */
+    @Operation(
+        summary     = "Open SSE stream for live portfolio P&L",
+        description = "Establishes a Server-Sent Events connection. "
+                    + "A `portfolio-update` event is pushed immediately on connect and then "
+                    + "after every Kafka price batch (~every 30 s). "
+                    + "A `:heartbeat` comment is sent every 30 s to keep the connection alive through proxies. "
+                    + "The stream times out after 5 minutes; the browser `EventSource` reconnects automatically.\n\n"
+                    + "**Browser SSE note:** `EventSource` cannot set custom headers. "
+                    + "Pass the JWT as a query parameter: "
+                    + "`GET /api/portfolio/stream?token=<jwt>` — the JWT filter accepts both forms.\n\n"
+                    + "**Swagger UI note:** The 'Try it out' button will not display a live stream — "
+                    + "use browser `EventSource` or `curl --no-buffer` instead."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description  = "SSE stream opened — events delivered as `text/event-stream`",
+            content      = @Content(mediaType = MediaType.TEXT_EVENT_STREAM_VALUE)
+        ),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid JWT",
+                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
+    })
     @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamPortfolio(Authentication authentication) {
         String username = authentication.getName();
@@ -117,6 +153,25 @@ public class PortfolioStreamController {
      *
      * <p>Authentication: standard {@code Authorization: Bearer <token>} header.
      */
+    @Operation(
+        summary     = "Get live portfolio snapshot (one-shot)",
+        description = "Computes and returns the same data as a single SSE `portfolio-update` event "
+                    + "but as a regular HTTP response — no persistent connection. "
+                    + "Useful for mobile clients, polling-based UIs, or Swagger 'Try it out' testing. "
+                    + "Each holding shows: current price, P&L, day change, market state, and threshold status."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description  = "Live portfolio valuation returned",
+            content      = @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema    = @Schema(implementation = PortfolioRealtimeResponse.class)
+            )
+        ),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid JWT",
+                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
+    })
     @GetMapping(value = "/snapshot", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PortfolioRealtimeResponse> getSnapshot(Authentication authentication) {
         String username = authentication.getName();

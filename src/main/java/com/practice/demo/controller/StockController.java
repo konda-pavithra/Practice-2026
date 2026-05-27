@@ -2,8 +2,16 @@ package com.practice.demo.controller;
 
 import com.practice.demo.dto.StockTickerResponse;
 import com.practice.demo.service.StockService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
  * refreshes the in-memory cache from Yahoo Finance every 30 seconds, so
  * every poll call receives up-to-date data with no extra Yahoo Finance cost.
  */
+@Tag(
+    name        = "Stock Ticker",
+    description = "Live Nifty 50 price snapshot — refreshed every 30 seconds from Yahoo Finance. "
+                + "Requires a valid JWT."
+)
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/stocks")
 @CrossOrigin(origins = "*")
@@ -49,6 +63,29 @@ public class StockController {
      * </ul>
      * </p>
      */
+    @Operation(
+        summary     = "Get Nifty 50 live quotes",
+        description = "Returns a snapshot of all 50 Nifty stocks with current price, change, "
+                    + "day range, volume, and market state. Data is served from an in-memory cache "
+                    + "that refreshes every 30 seconds. `dataStatus` indicates freshness: "
+                    + "`LIVE` (current cycle), `CACHED` (Yahoo Finance unavailable), "
+                    + "or `UNAVAILABLE` (startup, first fetch pending)."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description  = "Quote snapshot returned",
+            content      = @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema    = @Schema(implementation = StockTickerResponse.class)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description  = "Missing or invalid JWT",
+            content      = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+        )
+    })
     @GetMapping("/quotes")
     public ResponseEntity<StockTickerResponse> getQuotes() {
         logger.info("GET /api/stocks/quotes — serving Nifty 50 snapshot");
