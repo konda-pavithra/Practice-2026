@@ -73,6 +73,23 @@ public class StockThreshold {
     @Column(precision = 12, scale = 2, name = "reference_price")
     private BigDecimal referencePrice;
 
+    // ── Alert deduplication ──────────────────────────────────────────────────
+
+    /**
+     * Type of the most recent alert sent for this threshold ("UPPER" or "LOWER").
+     * {@code null} if no alert has been sent yet.
+     * Used together with {@link #lastAlertSentAt} to enforce the cooldown window.
+     */
+    @Column(name = "last_alert_type", length = 10)
+    private String lastAlertType;
+
+    /**
+     * Timestamp of the most recent alert that was published to RabbitMQ.
+     * {@code null} if no alert has been sent yet.
+     */
+    @Column(name = "last_alert_sent_at")
+    private LocalDateTime lastAlertSentAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

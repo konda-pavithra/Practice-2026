@@ -24,6 +24,10 @@ dependencies {
 	runtimeOnly 'org.postgresql:postgresql'
 	// Apache POI — reads both .xls (HSSF) and .xlsx (XSSF) Excel files
 	implementation 'org.apache.poi:poi-ooxml:5.2.5'
+	// RabbitMQ
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
+	// Email
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
