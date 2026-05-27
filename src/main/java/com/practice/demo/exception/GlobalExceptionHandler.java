@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -42,6 +44,38 @@ public class GlobalExceptionHandler {
             InvalidCredentialsException ex, HttpServletRequest request) {
         logger.warn("Authentication failed at {}: {}", request.getRequestURI(), ex.getMessage());
         return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI());
+    }
+
+    /**
+     * 409 Conflict — user tried to add a stock that is already in their portfolio.
+     *
+     * The response body extends the standard error envelope with an
+     * {@code existingHolding} field so the UI can pre-fill the update form
+     * without making a second round-trip.
+     *
+     * <pre>
+     * {
+     *   "timestamp": "...",
+     *   "status": 409,
+     *   "error": "Conflict",
+     *   "message": "RELIANCE is already in your portfolio. Use the update option ...",
+     *   "path": "/api/portfolio/add",
+     *   "existingHolding": { "symbol": "RELIANCE.NS", "quantity": 5, "buyingPrice": 2400.00, ... }
+     * }
+     * </pre>
+     */
+    @ExceptionHandler(StockAlreadyInPortfolioException.class)
+    public ResponseEntity<Map<String, Object>> handleStockConflict(
+            StockAlreadyInPortfolioException ex, HttpServletRequest request) {
+        logger.warn("Portfolio conflict at {}: {}", request.getRequestURI(), ex.getMessage());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp",       LocalDateTime.now().toString());
+        body.put("status",          HttpStatus.CONFLICT.value());
+        body.put("error",           HttpStatus.CONFLICT.getReasonPhrase());
+        body.put("message",         ex.getMessage());
+        body.put("path",            request.getRequestURI());
+        body.put("existingHolding", ex.getExistingHolding());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(InvalidFileException.class)

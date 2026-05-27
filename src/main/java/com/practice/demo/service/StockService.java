@@ -16,6 +16,8 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Core service for the Nifty 50 stock ticker.
@@ -171,6 +173,24 @@ public class StockService {
         LocalTime openTime  = LocalTime.of(9, 15);
         LocalTime closeTime = LocalTime.of(15, 30);
         return !time.isBefore(openTime) && !time.isAfter(closeTime);
+    }
+
+    // -----------------------------------------------------------------------
+    // Portfolio valuation bridge — consumed by PortfolioService
+    // -----------------------------------------------------------------------
+
+    /**
+     * Returns the cached quotes as a symbol → quote map for O(1) lookups.
+     * Used by {@link PortfolioService} when computing portfolio P&amp;L.
+     */
+    public Map<String, StockQuote> getCurrentQuotesMap() {
+        return cachedQuotes.stream()
+                .collect(Collectors.toMap(StockQuote::getSymbol, q -> q));
+    }
+
+    /** The data freshness status of the current cache ("LIVE", "CACHED", "UNAVAILABLE"). */
+    public String getDataStatus() {
+        return dataStatus;
     }
 
     // ── Null-safe helpers ────────────────────────────────────────────────────
