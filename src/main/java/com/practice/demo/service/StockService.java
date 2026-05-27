@@ -5,6 +5,7 @@ import com.practice.demo.client.dto.YahooFinanceQuoteResponse.YahooQuote;
 import com.practice.demo.constants.NseStocks;
 import com.practice.demo.dto.StockQuote;
 import com.practice.demo.dto.StockTickerResponse;
+import com.practice.demo.producer.StockPriceKafkaProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -41,15 +42,18 @@ public class StockService {
 
     private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
 
-    private final YahooFinanceClient yahooFinanceClient;
+    private final YahooFinanceClient    yahooFinanceClient;
+    private final StockPriceKafkaProducer kafkaProducer;
 
     // ── In-memory cache ──────────────────────────────────────────────────────
     private volatile List<StockQuote> cachedQuotes  = Collections.emptyList();
     private volatile LocalDateTime    lastFetchedAt = null;
     private volatile String           dataStatus    = "UNAVAILABLE";
 
-    public StockService(YahooFinanceClient yahooFinanceClient) {
+    public StockService(YahooFinanceClient yahooFinanceClient,
+                        StockPriceKafkaProducer kafkaProducer) {
         this.yahooFinanceClient = yahooFinanceClient;
+        this.kafkaProducer      = kafkaProducer;
     }
 
     // -----------------------------------------------------------------------
@@ -83,6 +87,11 @@ public class StockService {
             dataStatus    = "LIVE";
 
             logger.info("Cache updated: {} quotes, market open={}", freshQuotes.size(), isMarketOpen());
+
+            // Publish to Kafka → consumed by StockPriceKafkaConsumer → LivePriceStore
+            // → StockPricesUpdatedEvent → PortfolioRealtimeService → SSE clients
+            kafkaProducer.publishAll(freshQuotes);
+            logger.debug("Published {} quotes to Kafka", freshQuotes.size());
 
         } catch (Exception ex) {
             logger.error("Unexpected error during quote refresh: {}", ex.getMessage(), ex);
